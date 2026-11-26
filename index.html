@@ -114,11 +114,12 @@ const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},s
 const when=t=>new Date(t).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 const ago=t=>{const m=R((Date.now()-t)/6e4);return m<1?'à l\'instant':m<60?`il y a ${m} min`:m<2880?`il y a ${R(m/60)} h`:`le ${when(t)}`};
 
-let DATA=null,SYM='BTCUSDT',online=navigator.onLine,live={};
+let LAST=0,DATA=null,SYM='BTCUSDT',online=navigator.onLine,live={};
 try{DATA=JSON.parse(store.get('robots-data'))}catch(e){}
 
 async function fetchData(tok){
- const r=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/public.json?ref=data`,{headers:{Authorization:'Bearer '+tok,Accept:'application/vnd.github.raw+json'},cache:'no-store'});
+ let r;try{r=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/public.json?ref=data&t=${Date.now()}`,{headers:{Authorization:(tok.startsWith('ghp_')?'token ':'Bearer ')+tok,Accept:'application/vnd.github.raw+json'}})}catch(x){throw new Error('reseau')}
+ LAST=r.status;
  if(r.status===401)throw new Error('cle');if(r.status===404||r.status===403)throw new Error('acces');if(!r.ok)throw new Error('reseau');
  return r.json();
 }
@@ -134,7 +135,7 @@ function setNet(ok){online=ok&&navigator.onLine;const n=$('#net');n.classList.to
 function showLogin(msg){$('#vApp').hidden=true;$('#vLogin').hidden=false;$('#lErr').textContent=msg||''}
 $('#fLogin').onsubmit=async e=>{e.preventDefault();const tok=$('#tok').value.replace(/[\s"'`]/g,'');if(!tok)return;$('#lErr').textContent='Vérification…';
  try{DATA=await fetchData(tok);store.set('robots-token',tok);store.set('robots-data',JSON.stringify(DATA));$('#tok').value='';start()}
- catch(x){$('#lErr').textContent=x.message==='cle'?'GitHub ne reconnaît pas cette clé : elle a peut-être été mal copiée. Recopie-la entière (elle commence par ghp_ ou github_pat_).':x.message==='acces'?'Cette clé n\'a pas accès à tes dépôts privés : recrée-la avec le bouton « Créer ma clé » (la case « repo » doit être cochée).':'Pas de connexion : réessaie quand tu as du réseau.'}};
+ catch(x){$('#lErr').textContent=x.message==='cle'?'GitHub ne reconnaît pas cette clé : elle a peut-être été mal copiée. Recopie-la entière (elle commence par ghp_ ou github_pat_).':x.message==='acces'?'Cette clé n\'a pas accès à tes dépôts privés : recrée-la avec le bouton « Créer ma clé » (la case « repo » doit être cochée).':'Pas de connexion : réessaie quand tu as du réseau.'} $('#lErr').textContent+=` (code ${LAST||'réseau'}, clé de ${tok.length} caractères, début ${tok.slice(0,4)}…)`;};
 $('#bPaste').onclick=async()=>{try{$('#tok').value=(await navigator.clipboard.readText()).trim();$('#lErr').textContent=''}catch(e){$('#lErr').textContent='Collage automatique refusé : appui long dans la case puis « Coller ».'}};
 $('#bOut').onclick=()=>{store.del('robots-token');store.del('robots-data');DATA=null;showLogin('Déconnecté.')};
 $('#bRef').onclick=refresh;
