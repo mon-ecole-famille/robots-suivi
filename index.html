@@ -56,7 +56,7 @@ ol{padding-left:20px;margin:8px 0 0}li{margin-bottom:6px}
 <li>Touche l'icône copier à côté de la clé (elle commence par <b>ghp_</b>).</li>
 <li>Reviens ici, touche « Coller » puis « Se connecter ».</li>
 </ol>
-<a class="p btn" href="https://github.com/settings/tokens/new?scopes=repo&amp;description=Suivi%20robots" target="_blank" rel="noopener" style="margin-top:16px">Créer ma clé</a>
+<a class="p btn" id="aKey" href="https://github.com/settings/tokens/new?scopes=repo&amp;description=Suivi%20robots" target="_blank" rel="noopener" style="margin-top:16px">Créer ma clé</a>
 <form id="fLogin" style="margin-top:20px">
 <label for="tok" class="note">Clé d'accès</label>
 <div class="ctl" style="flex-wrap:nowrap"><input id="tok" type="password" autocomplete="current-password" placeholder="ghp_…" required><button type="button" id="bPaste">Coller</button></div>
@@ -136,6 +136,7 @@ function showLogin(msg){$('#vApp').hidden=true;$('#vLogin').hidden=false;$('#lEr
 $('#fLogin').onsubmit=async e=>{e.preventDefault();const tok=$('#tok').value.replace(/[\s"'`]/g,'');if(!tok)return;$('#lErr').textContent='Vérification…';
  try{DATA=await fetchData(tok);store.set('robots-token',tok);store.set('robots-data',JSON.stringify(DATA));$('#tok').value='';start()}
  catch(x){$('#lErr').textContent=x.message==='cle'?'GitHub ne reconnaît pas cette clé : elle a peut-être été mal copiée. Recopie-la entière (elle commence par ghp_ ou github_pat_).':x.message==='acces'?'Cette clé n\'a pas accès à tes dépôts privés : recrée-la avec le bouton « Créer ma clé » (la case « repo » doit être cochée).':'Pas de connexion : réessaie quand tu as du réseau.'} $('#lErr').textContent+=` (code ${LAST||'réseau'}, clé de ${tok.length} caractères, début ${tok.slice(0,4)}…)`;};
+$('#aKey').onclick=()=>{$('#aKey').href='https://github.com/settings/tokens/new?scopes=repo&description='+encodeURIComponent('Suivi robots '+new Date().toLocaleString('fr-FR').replace(/[/:]/g,'-'))};
 $('#bPaste').onclick=async()=>{try{$('#tok').value=(await navigator.clipboard.readText()).trim();$('#lErr').textContent=''}catch(e){$('#lErr').textContent='Collage automatique refusé : appui long dans la case puis « Coller ».'}};
 $('#bOut').onclick=()=>{store.del('robots-token');store.del('robots-data');DATA=null;showLogin('Déconnecté.')};
 $('#bRef').onclick=refresh;
