@@ -139,6 +139,9 @@
     if (!online) $('#offBan').textContent = DATA ? `Hors ligne : résultats enregistrés du ${when(DATA.updated)}.` : 'Hors ligne et aucun résultat enregistré pour l\'instant.';
   }
   const S = () => DATA && DATA.syms && DATA.syms[SYM];
+  const MK = () => { const s = S() || {}; return { sym: s.sym || SYM, itv: s.itv || '1h', lev: s.lev || 1 }; };
+  const MIN = { '15m': 15, '1h': 60, '4h': 240, '1d': 1440 };
+  const dur = n => { const m = n * (MIN[MK().itv] || 60); return m >= 120 || m % 60 === 0 ? `${num(m / 60, m % 60 ? 1 : 0)} h` : `${m} min`; };
 
   /* ---------- Construction de l'écran ---------- */
   let viewKey = '';
@@ -146,9 +149,9 @@
     setNet(online);
     if (!DATA || !DATA.syms || !Object.keys(DATA.syms).length) { $('#sum').textContent = 'Aucun résultat pour l\'instant : le serveur publie à chaque heure.'; return; }
     const syms = Object.keys(DATA.syms); if (!syms.includes(SYM)) SYM = syms[0];
-    $('#tabs').innerHTML = syms.map(s => `<button data-s="${esc(s)}" class="${s === SYM ? 'on' : ''}">${esc(s.replace('USDT', ''))}</button>`).join('');
+    $('#tabs').innerHTML = syms.map(s => `<button data-s="${esc(s)}" class="${s === SYM ? 'on' : ''}">${esc(DATA.syms[s].label || s.replace('USDT', ''))}</button>`).join('');
     const s = S(), key = SYM + DATA.updated;
-    $('#sum').textContent = `Départ le ${when(s.since)} · ${DATA.runs} passage${DATA.runs > 1 ? 's' : ''} du serveur · ${s.gen} générations d'apprentissage · dernier passage ${ago(DATA.updated)}. Garder la crypto sans rien faire aurait donné ${pc(s.bh)}.`;
+    $('#sum').textContent = `${s.lev > 1 ? `Arène risquée : bougies de ${dur(1)}, levier ×${s.lev} (gains et pertes multipliés par ${s.lev}, un robot à zéro est éliminé). ` : `Bougies de ${dur(1)}, sans levier. `}Départ le ${when(s.since)} · ${DATA.runs} passage${DATA.runs > 1 ? 's' : ''} du serveur · ${s.gen} générations d'apprentissage · dernier passage ${ago(DATA.updated)}. Garder la crypto sans rien faire aurait donné ${pc(s.bh)}.`;
     if (key !== viewKey) {
       viewKey = key;
       $('#room').innerHTML = s.bots.map((b, k) => `<article class="desk">
@@ -156,7 +159,7 @@
 <div class="cap" id="cap-${k}">—</div>
 <div class="row"><span>Depuis le départ</span><span id="chg-${k}">—</span></div>
 <div class="row"><span>Trade en cours</span><span id="open-${k}">—</span></div>
-<div class="row"><span>Si l'heure fermait maintenant</span><span id="int-${k}" class="chg">—</span></div>
+<div class="row"><span>Si la bougie fermait maintenant</span><span id="int-${k}" class="chg">—</span></div>
 <div class="why" id="why-${k}"></div>
 <details><summary>Comment je décide</summary><p class="note">${esc((INFO[k] || ['', ''])[1])}</p><p class="note">${esc(settings(k, b.g || {}))}</p><p class="note">Score test : ${num(b.test.sh, 2)} · ${b.live.tr} trade${b.live.tr > 1 ? 's' : ''} fictif${b.live.tr > 1 ? 's' : ''} depuis le départ.</p></details>
 </article>`).join('');
@@ -171,11 +174,11 @@
     const sh = g.sh == null ? '' : g.sh < .5 ? ' · ne parie jamais à la baisse' : ' · peut parier à la baisse';
     const risk = g.sl ? ` · stop à −${num(g.sl * 100)} % · objectif à +${num(g.tp * 100)} %` : '';
     const t = [
-      () => `Réglages appris : moyennes de ${R(g.f)} h et ${Math.max(R(g.f) + 5, R(g.s))} h`,
-      () => `Réglages appris : moyenne sur ${R(g.k)} h, seuil à ${num(g.z, 2)} écart-type`,
-      () => `Réglages appris : plus haut et plus bas sur ${R(g.n)} h`,
-      () => `Réglages appris : variation sur ${R(g.L)} h, seuil à ${num(g.t * 100)} %`,
-      () => `Réglages appris : RSI sur ${R(g.k)} h, achat sous ${R(g.lo)}, vente au-dessus de ${R(g.hi)}`,
+      () => `Réglages appris : moyennes de ${dur(R(g.f))} et ${dur(Math.max(R(g.f) + 5, R(g.s)))}`,
+      () => `Réglages appris : moyenne sur ${dur(R(g.k))}, seuil à ${num(g.z, 2)} écart-type`,
+      () => `Réglages appris : plus haut et plus bas sur ${dur(R(g.n))}`,
+      () => `Réglages appris : variation sur ${dur(R(g.L))}, seuil à ${num(g.t * 100)} %`,
+      () => `Réglages appris : RSI sur ${dur(R(g.k))}, achat sous ${R(g.lo)}, vente au-dessus de ${R(g.hi)}`,
       () => `Réglages appris : achat au-dessus de ${num(50 + g.m * 100)} %, vente sous ${num(50 - g.m * 100)} %`,
       () => `Réglages appris : il faut au moins ${R(g.v)} vote${R(g.v) > 1 ? 's' : ''} d'écart`,
       () => `Réglages appris : revend à +${num(g.tp * 100, 2)} % ou à −${num(g.sl * 100)} %`
@@ -204,7 +207,7 @@
     try { await loadEngine(); } catch (x) { $('#aiTxt').textContent = 'Le moteur des robots n\'a pas pu être chargé. Réessaie avec « Actualiser ».'; return; }
     if (LV.sym !== SYM) {
       stopLive(); LV.sym = SYM;
-      try { const d = await E.fetchKlines(fetch.bind(window), SYM, '1h', 1000); if (LV.sym !== SYM) return; LV.t = d.t; LV.c = d.c; LV.px = d.c[d.c.length - 1]; }
+      try { const d = await E.fetchKlines(fetch.bind(window), MK().sym, MK().itv, 1000); if (LV.sym !== SYM) return; LV.t = d.t; LV.c = d.c; LV.px = d.c[d.c.length - 1]; }
       catch (x) { LV.sym = null; $('#aiTxt').textContent = 'Binance ne répond pas depuis ce réseau : le direct reprendra tout seul.'; return; }
       connectWS();
     }
@@ -218,12 +221,12 @@
   }
   function baseNN() {
     if (!LV.c.length) return;
-    const D = E.prep(Float64Array.from(LV.c), E.ppyOf('1h'));
+    const D = E.prep(Float64Array.from(LV.c), E.ppyOf(MK().itv));
     if (LV.model) E.predictNN(TF, LV.model, D); LV.baseNN = D.nn;
   }
   function connectWS() {
-    const sym = SYM;
-    const ws = new WebSocket(`wss://data-stream.binance.vision/ws/${sym.toLowerCase()}@kline_1h`); LV.ws = ws;
+    const sym = SYM, mk = MK();
+    const ws = new WebSocket(`wss://data-stream.binance.vision/ws/${mk.sym.toLowerCase()}@kline_${mk.itv}`); LV.ws = ws;
     ws.onmessage = ev => {
       let m; try { m = JSON.parse(ev.data); } catch (x) { return; }
       const k = m && m.k; if (!k || LV.sym !== sym) return;
@@ -236,7 +239,7 @@
   /* Ce que chaque robot pense, recalculé à partir du cours de cette seconde. */
   function think() {
     const s = S(); if (!E || !s || !LV.c.length || LV.px == null || !s.bots[0].st) return null;
-    const D = E.prep(Float64Array.from([...LV.c, LV.px]), E.ppyOf('1h')), n = D.n, i = n - 1;
+    const D = E.prep(Float64Array.from([...LV.c, LV.px]), E.ppyOf(MK().itv), MK().lev), n = D.n, i = n - 1;
     let q = null;
     if (LV.model && LV.baseNN) {
       const nn = new Float32Array(n).fill(NaN); nn.set(LV.baseNN.subarray(0, n - 1));
@@ -250,12 +253,12 @@
   function why(k, g, D, i, q) {
     const p = D.p[i];
     switch (k) {
-      case 0: { const f = R(g.f), sl = Math.max(f + 5, R(g.s)), a = E.ma(D, i, f), b = E.ma(D, i, sl); return `Moyenne ${f} h : ${usd(a)} ${a > b ? '>' : '<'} moyenne ${sl} h : ${usd(b)}. Tendance ${a > b ? 'haussière' : 'baissière'}.`; }
-      case 1: { const kk = R(g.k), z = (p - E.ma(D, i, kk)) / (E.sd(D, i, kk) || 1e-9); return `Écart à la moyenne ${kk} h : ${num(z, 2)} écart-type (il agit au-delà de ±${num(g.z, 2)}).`; }
-      case 2: { const nn = R(g.n); let hi = -1e18, lo = 1e18; for (let j = i - nn; j < i; j++) { hi = Math.max(hi, D.p[j]); lo = Math.min(lo, D.p[j]); } return `Plus haut ${nn} h : ${usd(hi)} · plus bas : ${usd(lo)} · cours : ${usd(p)}.`; }
-      case 3: { const L = R(g.L), r = p / D.p[i - L] - 1; return `Variation sur ${L} h : ${pc(r, 2)} (il agit au-delà de ±${num(g.t * 100, 2)} %).`; }
-      case 4: { const x = E.rsi(D, i, R(g.k)); return `RSI ${R(g.k)} h : ${num(x, 0)} (achat sous ${R(g.lo)}, vente au-dessus de ${R(g.hi)}).`; }
-      case 5: return q == null ? 'Cerveau de l\'IA en cours de chargement.' : `Probabilité de hausse d'ici 4 h : ${num(q * 100)} % (achat au-dessus de ${num(50 + g.m * 100)} %, vente sous ${num(50 - g.m * 100)} %).`;
+      case 0: { const f = R(g.f), sl = Math.max(f + 5, R(g.s)), a = E.ma(D, i, f), b = E.ma(D, i, sl); return `Moyenne ${dur(f)} : ${usd(a)} ${a > b ? '>' : '<'} moyenne ${dur(sl)} : ${usd(b)}. Tendance ${a > b ? 'haussière' : 'baissière'}.`; }
+      case 1: { const kk = R(g.k), z = (p - E.ma(D, i, kk)) / (E.sd(D, i, kk) || 1e-9); return `Écart à la moyenne ${dur(kk)} : ${num(z, 2)} écart-type (il agit au-delà de ±${num(g.z, 2)}).`; }
+      case 2: { const nn = R(g.n); let hi = -1e18, lo = 1e18; for (let j = i - nn; j < i; j++) { hi = Math.max(hi, D.p[j]); lo = Math.min(lo, D.p[j]); } return `Plus haut ${dur(nn)} : ${usd(hi)} · plus bas : ${usd(lo)} · cours : ${usd(p)}.`; }
+      case 3: { const L = R(g.L), r = p / D.p[i - L] - 1; return `Variation sur ${dur(L)} : ${pc(r, 2)} (il agit au-delà de ±${num(g.t * 100, 2)} %).`; }
+      case 4: { const x = E.rsi(D, i, R(g.k)); return `RSI ${dur(R(g.k))} : ${num(x, 0)} (achat sous ${R(g.lo)}, vente au-dessus de ${R(g.hi)}).`; }
+      case 5: return q == null ? 'Cerveau de l\'IA en cours de chargement.' : `Probabilité de hausse d'ici ${dur(S().H || 4)} : ${num(q * 100)} % (achat au-dessus de ${num(50 + g.m * 100)} %, vente sous ${num(50 - g.m * 100)} %).`;
       case 6: { let up = 0, dn = 0; for (const m of D.mem) { if (m[i] > 0) up++; else if (m[i] < 0) dn++; } return `Votes : ${up} à l'achat, ${dn} à la vente. Il faut ${R(g.v)} vote${R(g.v) > 1 ? 's' : ''} d'écart pour agir.`; }
       case 7: return `Reste acheté en permanence, revend à +${num(g.tp * 100, 2)} % ou à −${num(g.sl * 100)} %.`;
     }
@@ -273,21 +276,21 @@
     const left = R((nx - now) / 1000); set('hNext', `≈ ${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`);
     const s = S(); if (!s) return;
     const live = online && LV.sym === SYM && LV.px != null, px = live ? LV.px : s.price, start = DATA.start || 1e4;
-    set('pxLbl', `${SYM.replace('USDT', '')} ${live ? 'en direct' : 'au dernier passage'}`);
+    set('pxLbl', `${s.label || SYM.replace('USDT', '')} ${live ? 'en direct' : 'au dernier passage'}`);
     const pxEl = $('#hPx'), txt = usd(px);
     if (pxEl.textContent !== txt) { pxEl.textContent = txt; if (lastPx != null) { pxEl.classList.remove('up', 'dn'); void pxEl.offsetWidth; pxEl.classList.add(px >= lastPx ? 'up' : 'dn'); } lastPx = px; }
     const th = live ? think() : null;
-    const caps = s.bots.map(b => b.st ? start * b.st.eq * (1 + b.st.pos * (px / s.price - 1)) : b.live.capital);
+    const lev = s.lev || 1, caps = s.bots.map(b => b.st ? Math.max(0, start * b.st.eq * (1 + b.st.pos * lev * (px / s.price - 1))) : b.live.capital);
     s.bots.forEach((b, k) => {
       const st = b.st || { pos: b.live.pos };
       set(`cap-${k}`, eur(caps[k])); set(`chg-${k}`, pc(caps[k] / start - 1), cls(caps[k] / start - 1));
       set(`pos-${k}`, posTxt(st.pos), 'badge b' + st.pos);
-      set(`open-${k}`, st.pos && st.entry ? `${posTxt(st.pos)} à ${usd(st.entry)} · ${pc(st.pos * (px / st.entry - 1), 2)}` : 'aucun');
+      set(`open-${k}`, st.dead ? 'éliminé (capital à zéro)' : st.pos && st.entry ? `${posTxt(st.pos)} à ${usd(st.entry)} · ${pc(st.pos * lev * (px / st.entry - 1), 2)}` : 'aucun');
       if (th) {
         const o = th.out[k], ip = o.it.pos, ch = ip !== st.pos;
-        set(`int-${k}`, (o.it.why === 'stop' ? 'Stop : sortirait' : o.it.why === 'objectif' ? 'Objectif : encaisserait' : ch ? `Passerait à ${posTxt(ip)}` : `Resterait ${posTxt(ip)}`), ch ? 'chg pos' : 'chg');
+        set(`int-${k}`, (o.it.why === 'elimine' ? 'Éliminé' : o.it.why === 'stop' ? 'Stop : sortirait' : o.it.why === 'objectif' ? 'Objectif : encaisserait' : ch ? `Passerait à ${posTxt(ip)}` : `Resterait ${posTxt(ip)}`), ch ? 'chg pos' : 'chg');
         set(`why-${k}`, o.why);
-        if (LV.intent[k] !== undefined && LV.intent[k] !== ip) addLog(`${b.name} : changerait d'avis, ${posTxt(LV.intent[k])} → ${posTxt(ip)} si l'heure fermait maintenant.`);
+        if (LV.intent[k] !== undefined && LV.intent[k] !== ip) addLog(`${b.name} : changerait d'avis, ${posTxt(LV.intent[k])} → ${posTxt(ip)} si la bougie fermait maintenant.`);
         LV.intent[k] = ip;
       } else { set(`int-${k}`, '—', 'chg'); set(`why-${k}`, online ? 'Connexion au cours en direct…' : 'Hors ligne : dernier état connu du serveur.'); }
     });
@@ -301,10 +304,10 @@
     const s = S(), k = s.bots.findIndex(b => /IA/.test(b.name)); if (k < 0) return;
     const b = s.bots[k], g = b.g || { m: 0 }, q = th && th.q != null ? th.q : s.aiP;
     $('#gLo').style.left = (50 - g.m * 100) + '%'; $('#gHi').style.left = (50 + g.m * 100) + '%';
-    if (q != null) { $('#gP').style.left = Math.max(0, Math.min(100, q * 100)) + '%'; set('aiPct', `${num(q * 100)} % de chances de hausse d'ici 4 h`); }
-    set('aiTxt', th && th.q != null ? `Calcul en direct avec le cerveau entraîné à ${hm(s.t0 + 36e5)} : la probabilité bouge avec chaque variation du cours.` : DATA.tf === false ? 'L\'IA n\'a pas pu tourner au dernier passage du serveur.' : online ? 'Chargement du cerveau de l\'IA…' : 'Hors ligne : dernière probabilité calculée par le serveur.');
+    if (q != null) { $('#gP').style.left = Math.max(0, Math.min(100, q * 100)) + '%'; set('aiPct', `${num(q * 100)} % de chances de hausse d'ici ${dur(s.H || 4)}`); }
+    set('aiTxt', th && th.q != null ? `Calcul en direct avec le cerveau entraîné à ${hm(s.t0 + (MIN[MK().itv] || 60) * 6e4)} : la probabilité bouge avec chaque variation du cours.` : DATA.tf === false ? 'L\'IA n\'a pas pu tourner au dernier passage du serveur.' : online ? 'Chargement du cerveau de l\'IA…' : 'Hors ligne : dernière probabilité calculée par le serveur.');
     const o = th ? th.out[k] : null;
-    const cards = [['Probabilité de hausse', q == null ? '—' : num(q * 100) + ' %'], ['Si l\'heure fermait', o ? posTxt(o.it.pos) : '—'], ['Position actuelle', posTxt((b.st || b.live).pos)], ['Capital fictif', eur(caps[k])], ['Depuis le départ', pc(caps[k] / start - 1)], ['Score test', num(b.test.sh, 2)]];
+    const cards = [['Probabilité de hausse', q == null ? '—' : num(q * 100) + ' %'], ['Si la bougie fermait', o ? posTxt(o.it.pos) : '—'], ['Position actuelle', posTxt((b.st || b.live).pos)], ['Capital fictif', eur(caps[k])], ['Depuis le départ', pc(caps[k] / start - 1)], ['Score test', num(b.test.sh, 2)]];
     const html = cards.map(([a, v], j) => `<div class="desk"><span class="note">${a}</span><div class="cap" style="font-size:22px">${esc(v)}</div></div>`).join('');
     if ($('#aiRoom').innerHTML !== html) $('#aiRoom').innerHTML = html;
   }
