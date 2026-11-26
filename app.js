@@ -269,7 +269,7 @@
     if (!KEY) return;
     const now = Date.now();
     set('hClk', hms(now));
-    const nx = new Date(now); nx.setUTCMinutes(7, 0, 0); if (nx <= now) nx.setUTCHours(nx.getUTCHours() + 1);
+    const nx = new Date(now); nx.setUTCMinutes(7, 0, 0); while (nx <= now) nx.setTime(nx.getTime() + 30 * 6e4);
     const left = R((nx - now) / 1000); set('hNext', `≈ ${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`);
     const s = S(); if (!s) return;
     const live = online && LV.sym === SYM && LV.px != null, px = live ? LV.px : s.price, start = DATA.start || 1e4;
