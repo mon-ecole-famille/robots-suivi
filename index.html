@@ -25,7 +25,8 @@ h1{font-size:clamp(28px,5vw,42px)}h2{font-size:22px;margin-bottom:8px}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:4px 10px;border-radius:20px;background:var(--card);border:1px solid var(--line)}
 .pill i{width:8px;height:8px;border-radius:50%;background:var(--g)}.pill.off i{background:var(--bad)}
 button,input{font:600 16px system-ui,sans-serif;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
-button{padding:0 16px;cursor:pointer}button.p{background:var(--ink);color:var(--bg);border-color:var(--ink)}button.on{background:var(--g);color:#fff;border-color:var(--g)}
+button{padding:0 16px;cursor:pointer}
+.btn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:10px;font-weight:700;text-decoration:none;background:var(--g);color:#fff}button.p{background:var(--ink);color:var(--bg);border-color:var(--ink)}button.on{background:var(--g);color:#fff;border-color:var(--g)}
 input{width:100%;padding:0 12px;font-weight:400}
 button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--g);outline-offset:2px}
 .ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -49,14 +50,20 @@ ol{padding-left:20px;margin:8px 0 0}li{margin-bottom:6px}
 <section id="vLogin" class="login" hidden>
 <img class="logo" src="icon-192.png" alt="">
 <h1>Suivi des robots</h1>
-<p class="sub">Connecte-toi avec ta clé d'accès GitHub en lecture seule. Elle reste uniquement sur ce téléphone.</p>
+<p class="sub">Une seule fois sur ce téléphone :</p>
+<ol style="margin-top:12px">
+<li>Touche « Créer ma clé ». Tout est déjà rempli : choisis juste <b>No expiration</b> dans « Expiration », descends tout en bas et touche <b>Generate token</b>.</li>
+<li>Touche l'icône copier à côté de la clé (elle commence par <b>ghp_</b>).</li>
+<li>Reviens ici, touche « Coller » puis « Se connecter ».</li>
+</ol>
+<a class="p btn" href="https://github.com/settings/tokens/new?scopes=repo&amp;description=Suivi%20robots" target="_blank" rel="noopener" style="margin-top:16px">Créer ma clé</a>
 <form id="fLogin" style="margin-top:20px">
 <label for="tok" class="note">Clé d'accès</label>
-<input id="tok" type="password" autocomplete="current-password" placeholder="github_pat_…" required>
+<div class="ctl" style="flex-wrap:nowrap"><input id="tok" type="password" autocomplete="current-password" placeholder="ghp_…" required><button type="button" id="bPaste">Coller</button></div>
 <button class="p" style="width:100%;margin-top:12px">Se connecter</button>
 <div class="err" id="lErr"></div>
 </form>
-<p class="note" style="margin-top:20px">Pas encore de clé ? <a href="https://github.com/settings/personal-access-tokens/new?name=Suivi%20robots&description=Lecture%20des%20r%C3%A9sultats&contents=read" target="_blank" rel="noopener">Crée-la ici</a>, en choisissant uniquement le dépôt robots-trader avec l'accès « Contents : Read-only ».</p>
+<p class="note" style="margin-top:16px">La clé reste uniquement sur ce téléphone. Tu ne la retapes plus ensuite.</p>
 </section>
 
 <div id="vApp" hidden>
@@ -125,9 +132,10 @@ function setNet(ok){online=ok&&navigator.onLine;const n=$('#net');n.classList.to
  const ban=$('#offBan');ban.hidden=online;if(!online)ban.textContent=DATA?`Hors ligne : résultats enregistrés du ${when(DATA.updated)}.`:'Hors ligne et aucune donnée enregistrée pour l\'instant.'}
 
 function showLogin(msg){$('#vApp').hidden=true;$('#vLogin').hidden=false;$('#lErr').textContent=msg||''}
-$('#fLogin').onsubmit=async e=>{e.preventDefault();const tok=$('#tok').value.trim();if(!tok)return;$('#lErr').textContent='Vérification…';
+$('#fLogin').onsubmit=async e=>{e.preventDefault();const tok=$('#tok').value.replace(/[\s"'`]/g,'');if(!tok)return;$('#lErr').textContent='Vérification…';
  try{DATA=await fetchData(tok);store.set('robots-token',tok);store.set('robots-data',JSON.stringify(DATA));$('#tok').value='';start()}
- catch(x){$('#lErr').textContent=x.message==='cle'?'Clé refusée par GitHub : vérifie-la.':x.message==='acces'?'Cette clé n\'a pas accès au dépôt robots-trader (Contents : Read-only).':'Pas de connexion : réessaie quand tu as du réseau.'}};
+ catch(x){$('#lErr').textContent=x.message==='cle'?'GitHub ne reconnaît pas cette clé : elle a peut-être été mal copiée. Recopie-la entière (elle commence par ghp_ ou github_pat_).':x.message==='acces'?'Cette clé n\'a pas accès à tes dépôts privés : recrée-la avec le bouton « Créer ma clé » (la case « repo » doit être cochée).':'Pas de connexion : réessaie quand tu as du réseau.'}};
+$('#bPaste').onclick=async()=>{try{$('#tok').value=(await navigator.clipboard.readText()).trim();$('#lErr').textContent=''}catch(e){$('#lErr').textContent='Collage automatique refusé : appui long dans la case puis « Coller ».'}};
 $('#bOut').onclick=()=>{store.del('robots-token');store.del('robots-data');DATA=null;showLogin('Déconnecté.')};
 $('#bRef').onclick=refresh;
 $('#tabs').onclick=e=>{const b=e.target.closest('button');if(b){SYM=b.dataset.s;render()}};
