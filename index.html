@@ -1,194 +1,189 @@
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.github.com https://data-api.binance.vision https://api.binance.com https://api1.binance.com wss://data-stream.binance.vision wss://stream.binance.com:9443; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
 <title>Suivi des robots</title>
 <meta name="theme-color" content="#00a862">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Robots">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Robots">
 <style>
 /* VOICE: tableau de bord de poche, sobre, chiffres d'abord, honnête sur le fictif
-   IDEA: le classement d'une course entre robots, consulté d'un coup d'œil
-   PICTURE: les courbes de capital fictif de chaque robot depuis le départ
+   IDEA: une salle des marchés où chaque robot a son pupitre et pense à voix haute
+   PICTURE: les pupitres des robots qui battent à la seconde, et la jauge de l'IA
    COLOUR and TYPE: blanc, encre #0b0b10, vert signal #00a862 ; polices système pour marcher hors ligne
-   LAYOUT: bande verte (cours et état), onglets d'actif, graphique, classement, IA */
-:root{color-scheme:light dark;--bg:light-dark(#fff,#07130d);--ink:light-dark(#0b0b10,#eef5f1);--mut:light-dark(#5b616b,#9fb0a7);--line:light-dark(#e3e6ea,#1e3329);--mist:light-dark(#eafaf2,#0c2117);--g:#00a862;--bad:light-dark(#c0362c,#ff7a6e);--card:light-dark(#f6f8f9,#0d1b14)}
+   LAYOUT: bande verte (cours, horloge), onglets, salle des robots, IA, courbes, journal, guide */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#07130d);--ink:light-dark(#0b0b10,#eef5f1);--mut:light-dark(#5b616b,#9fb0a7);--line:light-dark(#e3e6ea,#1e3329);--mist:light-dark(#eafaf2,#0c2117);--g:#00a862;--gd:light-dark(#007a47,#3fd394);--bad:light-dark(#c0362c,#ff7a6e);--card:light-dark(#f6f8f9,#0d1b14)}
 *{box-sizing:border-box;min-width:0}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:clip;padding-bottom:env(safe-area-inset-bottom)}
-.band{padding:clamp(18px,4vw,48px) max(5vw,16px)}.w{max-width:1100px;margin:0 auto}
-h1,h2,.big{line-height:1.05;margin:0;text-wrap:balance;letter-spacing:-.01em}
-h1{font-size:clamp(28px,5vw,42px)}h2{font-size:22px;margin-bottom:8px}
-.top{padding-top:calc(env(safe-area-inset-top) + 16px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:clip;padding-bottom:env(safe-area-inset-bottom);-webkit-tap-highlight-color:transparent}
+.band{padding:clamp(18px,4vw,44px) max(5vw,16px)}.w{max-width:1100px;margin:0 auto}
+h1,h2,h3,.big{line-height:1.08;margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(28px,5vw,40px)}h2{font-size:22px;margin-bottom:6px}h3{font-size:17px}
+.top{padding-top:calc(env(safe-area-inset-top) + 14px);padding-bottom:12px}
 .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .hero{background:var(--g);color:#fff}.hero .w{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px}
-.k small{display:block;font-size:13px;opacity:.88}.big{font-size:clamp(24px,6vw,38px);font-weight:700;white-space:nowrap}
+.k small{display:block;font-size:13px;opacity:.9}.big{font-size:clamp(24px,6vw,36px);font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.up{animation:fu .6s}.dn{animation:fd .6s}@keyframes fu{from{text-shadow:0 0 14px #fff}}@keyframes fd{from{opacity:.4}}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:4px 10px;border-radius:20px;background:var(--card);border:1px solid var(--line)}
 .pill i{width:8px;height:8px;border-radius:50%;background:var(--g)}.pill.off i{background:var(--bad)}
 button,input{font:600 16px system-ui,sans-serif;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
-button{padding:0 16px;cursor:pointer}
-.btn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:10px;font-weight:700;text-decoration:none;background:var(--g);color:#fff}button.p{background:var(--ink);color:var(--bg);border-color:var(--ink)}button.on{background:var(--g);color:#fff;border-color:var(--g)}
-input{width:100%;padding:0 12px;font-weight:400}
-button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--g);outline-offset:2px}
+button{padding:0 16px;cursor:pointer}button.p{background:var(--ink);color:var(--bg);border-color:var(--ink)}button.on{background:var(--g);color:#fff;border-color:var(--g)}
+input{width:100%;padding:0 12px;font-weight:400}input.pin{font-size:28px;letter-spacing:.4em;text-align:center}
+.btn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:10px;font-weight:700;text-decoration:none;background:var(--g);color:#fff}
+button:focus-visible,input:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--g);outline-offset:2px}
 .ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.fig{position:relative;height:300px;margin-top:12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.fig>canvas{position:absolute;inset:0;width:100%;height:100%}
+.sub{color:var(--mut);margin:6px 0 0;max-width:64ch}.note{font-size:13px;color:var(--mut)}
+.room{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px;margin-top:14px}
+.desk{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.desk .hd{display:flex;align-items:center;gap:8px;justify-content:space-between}.desk .hd b{font-size:16px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;flex:none}
+.cap{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:6px}
+.row{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:3px 0}.row span:first-child{color:var(--mut)}
+.row span:last-child{font-variant-numeric:tabular-nums;text-align:right}
+.badge{font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;background:var(--bg);border:1px solid var(--line);white-space:nowrap}
+.badge.b1{background:var(--g);color:#fff;border-color:var(--g)}.badge.b-1{background:var(--bad);color:#fff;border-color:var(--bad)}
+.why{font-size:13px;color:var(--mut);margin-top:8px;border-top:1px solid var(--line);padding-top:8px;min-height:3em}
+.chg{color:var(--ink);font-weight:600}
+details{margin-top:6px}summary{cursor:pointer;font-size:14px;font-weight:600;min-height:36px;display:flex;align-items:center}
+.neg{color:var(--bad)}.pos{color:var(--gd)}
+.gauge{position:relative;height:18px;border-radius:9px;background:linear-gradient(90deg,var(--bad),var(--line) 45%,var(--line) 55%,var(--g));margin:16px 0 6px}
+.gauge i{position:absolute;top:-6px;width:4px;height:30px;border-radius:2px;background:var(--ink);transform:translateX(-2px);transition:left .5s}
+.gauge b{position:absolute;top:-3px;width:2px;height:24px;background:var(--bg);opacity:.9}
+.gl{display:flex;justify-content:space-between;font-size:12px;color:var(--mut)}
+.mist{background:var(--mist)}
+.fig{position:relative;height:280px;margin-top:12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.fig>canvas{position:absolute;inset:0;width:100%;height:100%}
 .leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;margin-top:8px;color:var(--mut)}.leg i{display:inline-block;width:14px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
 table{width:100%;border-collapse:collapse;font-size:15px;margin-top:10px}th{font-weight:600;text-align:right;color:var(--mut);font-size:13px;padding:8px 6px;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}
-td{padding:10px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-.neg{color:var(--bad)}.pos{color:var(--g)}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px}
-.note{font-size:13px;color:var(--mut)}.sub{color:var(--mut);margin:8px 0 0;max-width:62ch}
-.mist{background:var(--mist)}
-.ai{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-top:10px}.ai div{background:var(--bg);border-radius:12px;padding:12px}.ai b{display:block;font-size:22px}
+td{padding:9px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.log{list-style:none;padding:0;margin:10px 0 0;font-size:14px}.log li{padding:8px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr;gap:10px}.log time{color:var(--mut);font-variant-numeric:tabular-nums;white-space:nowrap}
+.guide details{border-bottom:1px solid var(--line);padding:4px 0}.guide summary{font-size:16px;min-height:48px}.guide p,.guide li{color:var(--ink);font-size:15px;max-width:70ch}
 .banner{background:var(--bad);color:#fff;padding:10px max(5vw,16px);font-size:14px;font-weight:600}
-.login{max-width:440px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 40px) 20px 40px}
-.login .logo{width:64px;height:64px;border-radius:16px;margin-bottom:18px}
+.solo{max-width:440px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 36px) 20px 40px}
+.logo{width:64px;height:64px;border-radius:16px;margin-bottom:16px}
 .err{color:var(--bad);font-size:14px;min-height:20px;margin-top:8px}
 ol{padding-left:20px;margin:8px 0 0}li{margin-bottom:6px}
 [hidden]{display:none!important}
 @media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:9em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:8.5em;margin-inline-start:-9em;color:var(--mut)}.stack td:first-child{font-weight:600}}
+@media(prefers-reduced-motion:reduce){.up,.dn{animation:none}.gauge i{transition:none}}
 </style></head><body>
 
-<section id="vLogin" class="login" hidden>
+<section id="vLock" class="solo" hidden>
+<img class="logo" src="icon-192.png" alt="">
+<h1>Appli verrouillée</h1>
+<p class="sub">Entre ton code à 6 chiffres.</p>
+<form id="fLock" style="margin-top:18px">
+<input id="pinU" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" aria-label="Code à 6 chiffres" required>
+<button class="p" style="width:100%;margin-top:12px">Déverrouiller</button>
+<div class="err" id="uErr"></div>
+</form>
+<p class="note" style="margin-top:22px">Code oublié ? <button type="button" id="bForget" style="min-height:36px;font-size:14px">Tout effacer et me reconnecter</button></p>
+</section>
+
+<section id="vLogin" class="solo" hidden>
 <img class="logo" src="icon-192.png" alt="">
 <h1>Suivi des robots</h1>
+<div id="keyPart">
 <p class="sub">Une seule fois sur ce téléphone :</p>
 <ol style="margin-top:12px">
-<li>Touche « Créer ma clé ». Tout est déjà rempli : choisis juste <b>No expiration</b> dans « Expiration », descends tout en bas et touche <b>Generate token</b>.</li>
+<li>Touche « Créer ma clé ». Choisis <b>No expiration</b>, descends tout en bas et touche <b>Generate token</b>.</li>
 <li>Touche l'icône copier à côté de la clé (elle commence par <b>ghp_</b>).</li>
-<li>Reviens ici, touche « Coller » puis « Se connecter ».</li>
+<li>Reviens ici, touche « Coller », choisis ton code et valide.</li>
 </ol>
-<a class="p btn" id="aKey" href="https://github.com/settings/tokens/new?scopes=repo&amp;description=Suivi%20robots" target="_blank" rel="noopener" style="margin-top:16px">Créer ma clé</a>
-<form id="fLogin" style="margin-top:20px">
-<label for="tok" class="note">Clé d'accès</label>
-<div class="ctl" style="flex-wrap:nowrap"><input id="tok" type="password" autocomplete="current-password" placeholder="ghp_…" required><button type="button" id="bPaste">Coller</button></div>
-<button class="p" style="width:100%;margin-top:12px">Se connecter</button>
+<a class="btn" id="aKey" href="https://github.com/settings/tokens/new?scopes=repo&amp;description=Suivi%20robots" target="_blank" rel="noopener noreferrer" style="margin-top:16px">Créer ma clé</a>
+</div>
+<p class="sub" id="migr" hidden>Nouvelle sécurité : choisis un code à 6 chiffres. Il protégera l'appli et chiffrera ta clé sur ce téléphone.</p>
+<form id="fLogin" style="margin-top:18px">
+<div id="tokRow"><label for="tok" class="note">Clé d'accès</label>
+<div class="ctl" style="flex-wrap:nowrap"><input id="tok" type="password" autocomplete="off" placeholder="ghp_…"><button type="button" id="bPaste">Coller</button></div></div>
+<label for="pin1" class="note" style="display:block;margin-top:14px">Choisis un code à 6 chiffres</label>
+<input id="pin1" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" required>
+<label for="pin2" class="note" style="display:block;margin-top:10px">Confirme le code</label>
+<input id="pin2" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" required>
+<button class="p" style="width:100%;margin-top:14px">Valider</button>
 <div class="err" id="lErr"></div>
 </form>
-<p class="note" style="margin-top:16px">La clé reste uniquement sur ce téléphone. Tu ne la retapes plus ensuite.</p>
+<p class="note" style="margin-top:16px">Ta clé est chiffrée avec ton code et ne quitte jamais ce téléphone, sauf pour lire tes résultats chez GitHub.</p>
 </section>
 
 <div id="vApp" hidden>
 <div class="banner" id="offBan" hidden></div>
 <header class="band top"><div class="w bar">
 <h1>Mes robots</h1>
-<span class="pill" id="net"><i></i><span>En ligne</span></span>
+<div class="ctl"><span class="pill" id="net"><i></i><span>En ligne</span></span><button id="bLock" style="min-height:36px;font-size:14px">Verrouiller</button></div>
 </div></header>
 
 <section class="band hero"><div class="w">
 <div class="k"><small id="pxLbl">BTC en direct</small><span class="big" id="hPx">—</span></div>
-<div class="k"><small>Meilleur robot</small><span class="big" id="hBest">—</span></div>
-<div class="k"><small>Achat-conservation</small><span class="big" id="hBh">—</span></div>
-<div class="k"><small>Dernier passage du serveur</small><span class="big" id="hUp">—</span></div>
+<div class="k"><small>Meilleur robot maintenant</small><span class="big" id="hBest">—</span></div>
+<div class="k"><small>Prochaine décision du serveur</small><span class="big" id="hNext">—</span></div>
+<div class="k"><small>Heure</small><span class="big" id="hClk">—</span></div>
 </div></section>
 
 <section class="band"><div class="w">
 <div class="ctl" id="tabs"></div>
 <p class="sub" id="sum"></p>
-<div class="fig"><canvas id="cv"></canvas></div>
-<div class="leg" id="leg"></div>
-<table class="stack"><thead><tr><th>Robot</th><th>Capital fictif</th><th>Depuis le départ</th><th>Trades</th><th>Réussite</th><th>Perte max</th><th>Position</th><th>Score test</th></tr></thead><tbody id="tb"></tbody></table>
+<h2 style="margin-top:18px">Les robots à la seconde</h2>
+<p class="sub">Capital recalculé chaque seconde avec le cours en direct. « Si l'heure fermait maintenant » montre ce que chaque robot déciderait à la prochaine clôture, et pourquoi.</p>
+<div class="room" id="room"></div>
 </div></section>
 
 <section class="band mist"><div class="w">
-<h2>L'IA neuronale</h2>
-<p class="sub" id="aiTxt"></p>
-<div class="ai" id="ai"></div>
+<h2>L'IA en direct</h2>
+<p class="sub" id="aiTxt">Chargement du cerveau de l'IA…</p>
+<div class="gauge" aria-hidden="true"><b id="gLo"></b><b id="gHi"></b><i id="gP" style="left:50%"></i></div>
+<div class="gl"><span>Baisse probable</span><span id="aiPct">—</span><span>Hausse probable</span></div>
+<div class="room" id="aiRoom" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))"></div>
 </div></section>
 
 <section class="band"><div class="w">
-<div class="ctl"><button class="p" id="bRef">Actualiser</button><button id="bOut">Se déconnecter</button></div>
-<p class="note" style="margin-top:14px">Argent fictif : aucun ordre réel n'est passé. Le serveur joue une bougie d'1 heure à chaque passage, avec 0,1 % de frais par ordre. Hors connexion, le site affiche les derniers résultats enregistrés sur ce téléphone. Pour l'installer : menu du navigateur, puis « Ajouter à l'écran d'accueil ».</p>
+<h2>Capital depuis le départ</h2>
+<div class="fig"><canvas id="cv"></canvas></div>
+<div class="leg" id="leg"></div>
+<table class="stack"><thead><tr><th>Robot</th><th>Capital maintenant</th><th>Depuis le départ</th><th>Trades</th><th>Réussite</th><th>Perte max</th><th>Score test</th></tr></thead><tbody id="tb"></tbody></table>
+</div></section>
+
+<section class="band mist"><div class="w">
+<h2>Journal</h2>
+<p class="sub">Trades fictifs passés par le serveur, et changements d'avis des robots observés ici à la seconde.</p>
+<ul class="log" id="log"></ul>
+</div></section>
+
+<section class="band guide"><div class="w">
+<h2>Guide</h2>
+<details><summary>Comment fonctionne le système</summary>
+<p>Un robot serveur tourne seul toutes les heures sur GitHub, même téléphone éteint. À chaque passage, il récupère les vrais cours Binance de BTC, ETH et SOL. Il joue la dernière heure avec les réglages décidés avant elle, pour qu'aucun robot ne voie l'avenir. Puis tous les robots et l'IA réapprennent ensemble sur les données à jour.</p>
+<p>Chaque robot gère 10 000 € fictifs par crypto. Aucun ordre réel n'est passé. Les frais réels de Binance (0,1 % par ordre) sont déduits.</p>
+<p>Cette appli reçoit le cours en direct et recalcule chaque seconde le capital de chaque robot, ainsi que ce qu'il déciderait à la prochaine clôture.</p></details>
+<details><summary>Les 8 robots</summary><ul id="guideBots"></ul></details>
+<details><summary>Comprendre l'IA</summary>
+<p>L'IA est un réseau de neurones TensorFlow.js. Elle regarde les 20 dernières variations du cours, la volatilité, l'écart à la moyenne et le RSI. Elle en déduit la probabilité que le cours soit plus haut dans 4 heures.</p>
+<p>Elle n'achète que si cette probabilité dépasse assez 50 %, et ne vend que si elle tombe assez en dessous. Ce seuil, visible sur la jauge, est lui-même réglé par l'apprentissage. Son « cerveau » est réentraîné chaque heure sur toutes les bougies connues, et c'est exactement ce cerveau que ton téléphone utilise ici en direct.</p></details>
+<details><summary>Lire les chiffres</summary>
+<ul><li><b>Capital maintenant</b> : les 10 000 € de départ, plus les gains et moins les pertes, y compris le trade en cours au cours de cette seconde.</li>
+<li><b>Position</b> : Achat (le robot gagne si le cours monte), Vente (il gagne s'il baisse) ou Neutre (il ne fait rien).</li>
+<li><b>Réussite</b> : la part des trades gagnants. Ce n'est pas un bon critère seul, lis « Le piège des 95 % ».</li>
+<li><b>Perte max</b> : la pire chute du capital depuis un sommet. Au-delà de 30 %, un robot est trop risqué.</li>
+<li><b>Score test (Sharpe)</b> : le gain rapporté au risque, sur les 35 % de données récentes que le robot n'a pas vues pendant son apprentissage. Au-dessus de 1, c'est bon ; en dessous de 0, il perd.</li>
+<li><b>Achat-conservation</b> : ce qu'aurait donné le simple fait de garder la crypto. Un robot utile doit faire mieux, avec moins de risque.</li></ul></details>
+<details><summary>Le piège des 95 % de réussite</summary>
+<p>Le robot « Piège 95 % » prend un tout petit gain dès qu'il peut et laisse courir les pertes. Il gagne presque toujours, mais chaque perte efface des dizaines de gains. Juge donc les robots sur leur capital, leur score test et leur perte max, jamais sur leur seul taux de réussite.</p></details>
+<details><summary>Sécurité</summary>
+<ul><li>Ton dépôt de robots est privé : personne d'autre ne voit le code, les réglages appris ni les résultats.</li>
+<li>Cette appli est verrouillée par ton code à 6 chiffres. Ta clé GitHub et les résultats enregistrés sont chiffrés (AES-256) avec ce code sur ton téléphone.</li>
+<li>L'appli se reverrouille après 5 minutes en arrière-plan. Après 5 codes faux, tout est effacé.</li>
+<li>Le code des robots est lu directement dans ton dépôt privé, uniquement après déverrouillage. Il n'est jamais publié.</li>
+<li>Si tu perds ton téléphone, supprime la clé sur github.com/settings/tokens : l'appli ne pourra plus rien lire.</li></ul></details>
+<details><summary>En ligne et hors ligne</summary>
+<p>En ligne, les cours arrivent en direct et les résultats du serveur sont relus toutes les 2 minutes. Hors ligne, l'appli s'ouvre quand même, avec les derniers résultats enregistrés et leur date. Les calculs à la seconde reprennent dès le retour du réseau.</p></details>
+<details><summary>Avant de passer à l'argent réel</summary>
+<ol><li>Laisser tourner au moins 2 à 3 mois en fictif.</li>
+<li>Ne retenir qu'un robot qui bat l'achat-conservation, avec une perte max sous 30 % et un score test positif sur les 3 cryptos.</li>
+<li>Commencer avec une petite somme que tu peux perdre entièrement, avec une limite de perte par jour.</li></ol>
+<p class="note">Les résultats passés ou fictifs ne garantissent rien. Ceci n'est pas un conseil en investissement.</p></details>
+<div class="ctl" style="margin-top:20px"><button class="p" id="bRef">Actualiser</button><button id="bOut">Se déconnecter</button></div>
+<p class="note" style="margin-top:12px">Pour l'installer comme une appli : menu du navigateur, puis « Ajouter à l'écran d'accueil ».</p>
 </div></section>
 </div>
-
-<script>
-{
-const OWNER='mon-ecole-famille',REPO='robots-trader';
-const $=s=>document.querySelector(s),R=Math.round;
-const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
-const pc=x=>isFinite(x)?(x>=0?'+':'')+(x*100).toFixed(1).replace('.',',')+' %':'—';
-const eur=x=>R(x).toLocaleString('fr-FR')+' €',usd=x=>(+x).toLocaleString('fr-FR',{maximumFractionDigits:x<10?4:2})+' $';
-const posTxt=p=>p>0?'Achat':p<0?'Vente':'Neutre',cls=x=>x>=0?'pos':'neg';
-const cssv=v=>getComputedStyle(document.body).getPropertyValue(v).trim();
-const colOf=c=>c==='ink'?getComputedStyle(document.body).color:/^#[0-9a-f]{3,8}$/i.test(c)?c:'#888';
-const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
-const when=t=>new Date(t).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-const ago=t=>{const m=R((Date.now()-t)/6e4);return m<1?'à l\'instant':m<60?`il y a ${m} min`:m<2880?`il y a ${R(m/60)} h`:`le ${when(t)}`};
-
-let LAST=0,DATA=null,SYM='BTCUSDT',online=navigator.onLine,live={};
-try{DATA=JSON.parse(store.get('robots-data'))}catch(e){}
-
-async function fetchData(tok){
- let r;try{r=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/public.json?ref=data&t=${Date.now()}`,{headers:{Authorization:(tok.startsWith('ghp_')?'token ':'Bearer ')+tok,Accept:'application/vnd.github.raw+json'}})}catch(x){throw new Error('reseau')}
- LAST=r.status;
- if(r.status===401)throw new Error('cle');if(r.status===404||r.status===403)throw new Error('acces');if(!r.ok)throw new Error('reseau');
- return r.json();
-}
-async function refresh(){
- const tok=store.get('robots-token');if(!tok)return showLogin();
- try{DATA=await fetchData(tok);store.set('robots-data',JSON.stringify(DATA));store.set('robots-ok',Date.now());setNet(true)}
- catch(e){if(e.message==='cle'){store.del('robots-token');return showLogin('Ta clé n\'est plus valide (expirée ou supprimée). Crées-en une nouvelle.')}setNet(false)}
- render();
-}
-function setNet(ok){online=ok&&navigator.onLine;const n=$('#net');n.classList.toggle('off',!online);n.lastElementChild.textContent=online?'En ligne':'Hors ligne';
- const ban=$('#offBan');ban.hidden=online;if(!online)ban.textContent=DATA?`Hors ligne : résultats enregistrés du ${when(DATA.updated)}.`:'Hors ligne et aucune donnée enregistrée pour l\'instant.'}
-
-function showLogin(msg){$('#vApp').hidden=true;$('#vLogin').hidden=false;$('#lErr').textContent=msg||''}
-$('#fLogin').onsubmit=async e=>{e.preventDefault();const tok=$('#tok').value.replace(/[\s"'`]/g,'');if(!tok)return;$('#lErr').textContent='Vérification…';
- try{DATA=await fetchData(tok);store.set('robots-token',tok);store.set('robots-data',JSON.stringify(DATA));$('#tok').value='';start()}
- catch(x){$('#lErr').textContent=x.message==='cle'?'GitHub ne reconnaît pas cette clé : elle a peut-être été mal copiée. Recopie-la entière (elle commence par ghp_ ou github_pat_).':x.message==='acces'?'Cette clé n\'a pas accès à tes dépôts privés : recrée-la avec le bouton « Créer ma clé » (la case « repo » doit être cochée).':'Pas de connexion : réessaie quand tu as du réseau.'} $('#lErr').textContent+=` (code ${LAST||'réseau'}, clé de ${tok.length} caractères, début ${tok.slice(0,4)}…)`;};
-$('#aKey').onclick=()=>{$('#aKey').href='https://github.com/settings/tokens/new?scopes=repo&description='+encodeURIComponent('Suivi robots '+new Date().toLocaleString('fr-FR').replace(/[/:]/g,'-'))};
-$('#bPaste').onclick=async()=>{try{$('#tok').value=(await navigator.clipboard.readText()).trim();$('#lErr').textContent=''}catch(e){$('#lErr').textContent='Collage automatique refusé : appui long dans la case puis « Coller ».'}};
-$('#bOut').onclick=()=>{store.del('robots-token');store.del('robots-data');DATA=null;showLogin('Déconnecté.')};
-$('#bRef').onclick=refresh;
-$('#tabs').onclick=e=>{const b=e.target.closest('button');if(b){SYM=b.dataset.s;render()}};
-
-function chart(series){
- const c=$('#cv'),W=c.clientWidth,H=c.clientHeight,dpr=devicePixelRatio||1;c.width=W*dpr;c.height=H*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);
- if(!series.length||series[0].v.length<2){x.fillStyle=cssv('--mut');x.font='15px system-ui';x.fillText('Les courbes se dessinent au fil des heures.',12,30);return}
- let lo=1e9,hi=-1e9;for(const s of series)for(const v of s.v){if(v<lo)lo=v;if(v>hi)hi=v}
- const pad=(hi-lo)*.08||.004;lo=Math.min(lo-pad,.998);hi=Math.max(hi+pad,1.002);
- const L=W<520?8:52,T=10,B=H-12,Rg=W-8,X=(i,n)=>L+(Rg-L)*i/Math.max(1,n-1),Y=v=>T+(B-T)*(hi-v)/(hi-lo);
- x.font='12px system-ui';
- for(const v of [lo,1,hi]){const y=Y(v);x.strokeStyle=cssv('--line');x.lineWidth=1;x.beginPath();x.moveTo(L,y);x.lineTo(Rg,y);x.stroke();if(W>=520){x.fillStyle=cssv('--mut');x.textAlign='right';x.fillText(eur(v*(DATA.start||1e4)).replace(' €',''),L-6,y+4)}}
- for(const s of series){x.strokeStyle=s.col;x.setLineDash(s.dash||[]);x.lineWidth=s.w||1.8;x.beginPath();s.v.forEach((v,i)=>i?x.lineTo(X(i,s.v.length),Y(v)):x.moveTo(X(i,s.v.length),Y(v)));x.stroke()}
- x.setLineDash([]);
-}
-function render(){
- setNet(online);
- if(!DATA||!DATA.syms||!Object.keys(DATA.syms).length){$('#sum').textContent='Aucun résultat pour l\'instant : le serveur publie à chaque heure.';$('#tb').innerHTML='';chart([]);return}
- const syms=Object.keys(DATA.syms);if(!syms.includes(SYM))SYM=syms[0];
- const S=DATA.syms[SYM],start=DATA.start||1e4;
- $('#tabs').innerHTML=syms.map(s=>`<button data-s="${esc(s)}" class="${s===SYM?'on':''}">${esc(s.replace('USDT',''))}</button>`).join('');
- $('#pxLbl').textContent=`${SYM.replace('USDT','')} ${online&&live[SYM]?'en direct':'au dernier passage'}`;
- $('#hPx').textContent=usd(online&&live[SYM]?live[SYM]:S.price);
- const ord=S.bots.map((b,k)=>k).sort((a,b)=>S.bots[b].live.capital-S.bots[a].live.capital);
- const top=ord.find(k=>!/Piège/.test(S.bots[k].name));
- $('#hBest').textContent=eur(S.bots[top].live.capital);$('#hBh').textContent=pc(S.bh);$('#hUp').textContent=ago(DATA.updated);
- $('#sum').textContent=`Départ le ${when(S.since)} · ${DATA.runs} passage${DATA.runs>1?"s":""} · ${S.gen} générations d'apprentissage. En tête : ${S.bots[top].name}. Pour comparer, garder la crypto sans rien faire aurait donné ${pc(S.bh)}.`;
- $('#tb').innerHTML=ord.map(k=>{const b=S.bots[k],l=b.live;return `<tr><td><span class="dot" style="background:${colOf(b.col)}"></span>${esc(b.name)}</td><td>${eur(l.capital)}</td><td class="${cls(l.ret)}">${pc(l.ret)}</td><td>${+l.tr}</td><td>${l.tr?R(l.wr*100)+' %':'—'}</td><td>${R(l.dd*100)} %</td><td>${posTxt(l.pos)}</td><td>${(+b.test.sh).toFixed(2).replace('.',',')}</td></tr>`}).join('');
- $('#leg').innerHTML=S.bots.map(b=>`<span><i style="background:${colOf(b.col)}"></i>${esc(b.name)}</span>`).join('');
- chart(S.bots.map((b,k)=>({v:S.hist.map(h=>h[k+1]),col:colOf(b.col),dash:/Piège/.test(b.name)?[2,3]:[],w:b.col==='ink'?2.6:1.8})));
- const ai=S.bots.find(b=>/IA/.test(b.name));
- if(ai){const rank=ord.indexOf(S.bots.indexOf(ai))+1;
-  $('#aiTxt').textContent=DATA.tf?`Réseau de neurones TensorFlow.js réentraîné à chaque passage sur les dernières données ${SYM.replace('USDT','')}. Il est ${rank}e sur ${S.bots.length} au classement.`:'L\'IA n\'a pas pu tourner au dernier passage du serveur.';
-  $('#ai').innerHTML=[['Capital fictif',eur(ai.live.capital)],['Depuis le départ',pc(ai.live.ret)],['Position',posTxt(ai.live.pos)],['Trades',ai.live.tr],['Score test',(+ai.test.sh).toFixed(2).replace('.',',')]].map(([a,v])=>`<div><span class="note">${a}</span><b>${esc(v)}</b></div>`).join('')}
-}
-
-let ws=null;
-function connectLive(){
- if(ws||!navigator.onLine)return;
- ws=new WebSocket('wss://data-stream.binance.vision/stream?streams=btcusdt@miniTicker/ethusdt@miniTicker/solusdt@miniTicker');
- ws.onmessage=e=>{let m;try{m=JSON.parse(e.data).data}catch(x){return}if(!m||!m.s)return;live[m.s]=+m.c;if(m.s===SYM&&online){$('#hPx').textContent=usd(+m.c);$('#pxLbl').textContent=`${SYM.replace('USDT','')} en direct`}};
- ws.onclose=()=>{ws=null;setTimeout(connectLive,5000)};
-}
-addEventListener('online',()=>{setNet(true);refresh();connectLive()});
-addEventListener('offline',()=>{setNet(false);render()});
-new ResizeObserver(()=>DATA&&render()).observe($('#cv'));
-let timer=null;
-function start(){$('#vLogin').hidden=true;$('#vApp').hidden=false;render();refresh();connectLive();clearInterval(timer);timer=setInterval(refresh,300000);
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()})}
-if(store.get('robots-token'))start();else showLogin();
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-}
-</script>
+<script src="app.js"></script>
 </body></html>
