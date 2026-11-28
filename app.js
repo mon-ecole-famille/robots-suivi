@@ -27,9 +27,10 @@
     ['Cassure', 'Guette les sorties de zone : il achète quand le cours dépasse son plus haut récent, et vend quand il casse son plus bas.'],
     ['Momentum', 'Suit l\'élan : il achète si le cours a assez monté sur la période, et vend s\'il a assez baissé.'],
     ['RSI', 'Mesure la surchauffe : il achète quand le marché est survendu (RSI bas), et vend quand il est suracheté (RSI haut).'],
-    ['IA neuronale', 'Réseau de neurones TensorFlow.js qui estime la probabilité que le cours monte dans les 4 prochaines heures, réentraîné chaque heure.'],
+    ['IA neuronale', 'Réseau de neurones TensorFlow.js qui estime la probabilité que le cours monte dans les 4 prochaines bougies, à partir du prix, des volumes, du flux acheteurs, du BTC, de l\'heure et des taux de financement. Réentraîné chaque jour.'],
     ['Conseil (vote)', 'Fait voter les 6 robots précédents et ne suit que les décisions assez majoritaires.'],
-    ['Piège 95 %', 'Robot témoin : il vise un taux de réussite énorme avec de tout petits gains et de grosses pertes, pour montrer que 95 % de réussite ne veut rien dire.']
+    ['Piège 95 %', 'Robot témoin : il vise un taux de réussite énorme avec de tout petits gains et de grosses pertes, pour montrer que 95 % de réussite ne veut rien dire.'],
+    ['Flux acheteurs', 'Observe qui pousse le marché : il achète quand les acheteurs pressés dominent nettement avec un volume inhabituel, et vend quand ce sont les vendeurs.']
   ];
   $('#guideBots').innerHTML = INFO.map(([n, t]) => `<li><b>${n}</b> : ${t}</li>`).join('');
 
@@ -189,7 +190,8 @@
       () => `Réglages appris : RSI sur ${dur(R(g.k))}, achat sous ${R(g.lo)}, vente au-dessus de ${R(g.hi)}`,
       () => `Réglages appris : achat au-dessus de ${num(50 + g.m * 100)} %, vente sous ${num(50 - g.m * 100)} %`,
       () => `Réglages appris : il faut au moins ${R(g.v)} vote${R(g.v) > 1 ? 's' : ''} d'écart`,
-      () => `Réglages appris : revend à +${num(g.tp * 100, 2)} % ou à −${num(g.sl * 100)} %`
+      () => `Réglages appris : revend à +${num(g.tp * 100, 2)} % ou à −${num(g.sl * 100)} %`,
+      () => `Réglages appris : flux mesuré sur ${dur(R(g.k))}, seuil à ${num(g.th * 100)} points, volume minimal ${num(g.vz, 1)} écart-type`
     ][k];
     return t ? t() + (k === 7 ? '' : risk + sh) + '.' : '';
   }
@@ -208,15 +210,18 @@
   }
 
   /* ---------- Direct ---------- */
-  const LV = { sym: null, t: [], c: [], px: null, last: null, baseNN: null, model: null, modelT0: null, ws: null, intent: {}, logs: [], q: null };
-  function stopLive() { if (LV.ws) { LV.ws.onclose = null; LV.ws.close(); LV.ws = null; } if (LV.model) { LV.model.dispose(); LV.model = null; } LV.sym = null; LV.px = null; LV.intent = {}; }
+  const LV = { sym: null, t: [], c: [], v: [], tb: [], px: null, cur: null, bt: [], bc: [], bpx: null, baseNN: null, model: null, modelT0: null, ws: null, intent: {}, logs: [], q: null };
+  function stopLive() { if (LV.ws) { LV.ws.onclose = null; LV.ws.close(); LV.ws = null; } if (LV.model) { LV.model.dispose(); LV.model = null; } LV.sym = null; LV.px = null; LV.cur = null; LV.bpx = null; LV.baseNN = null; LV.intent = {}; }
   async function startLive() {
     if (!online || !S() || !TOKEN) return;
     try { await loadEngine(); } catch (x) { $('#aiTxt').textContent = 'Le moteur des robots n\'a pas pu être chargé. Réessaie avec « Actualiser ».'; return; }
     if (LV.sym !== SYM) {
-      stopLive(); LV.sym = SYM;
-      try { const d = await E.fetchKlines(fetch.bind(window), MK().sym, MK().itv, 1000); if (LV.sym !== SYM) return; LV.t = d.t; LV.c = d.c; LV.px = d.c[d.c.length - 1]; }
-      catch (x) { LV.sym = null; $('#aiTxt').textContent = 'Binance ne répond pas depuis ce réseau : le direct reprendra tout seul.'; return; }
+      stopLive(); LV.sym = SYM; const mk = MK();
+      try {
+        const d = await E.fetchKlines(fetch.bind(window), mk.sym, mk.itv, 1000); if (LV.sym !== SYM) return;
+        Object.assign(LV, { t: d.t, c: d.c, v: d.v, tb: d.tb, px: d.c[d.c.length - 1], bt: [], bc: [] });
+        if (mk.sym !== 'BTCUSDT') { const b = await E.fetchKlines(fetch.bind(window), 'BTCUSDT', mk.itv, 1000); if (LV.sym !== SYM) return; LV.bt = b.t; LV.bc = b.c; LV.bpx = b.c[b.c.length - 1]; }
+      } catch (x) { LV.sym = null; $('#aiTxt').textContent = 'Binance ne répond pas depuis ce réseau : le direct reprendra tout seul.'; return; }
       connectWS();
     }
     if (LV.modelT0 !== S().t0 || !LV.baseNN) { buildModel(); baseNN(); }
@@ -225,21 +230,43 @@
   function buildModel() {
     if (LV.model) { LV.model.dispose(); LV.model = null; }
     const s = S(); LV.modelT0 = s.t0;
-    if (TF && s.nnW) { LV.model = E.makeModel(TF); E.setW(TF, LV.model, s.nnW); }
+    if (TF && s.nnW && s.nnW[0] && s.nnW[0].s[0] === E.NF) { LV.model = E.makeModel(TF); E.setW(TF, LV.model, s.nnW); }
+  }
+  /* Mêmes informations que le serveur : volumes, flux, BTC aligné, financement, plus la bougie en cours si demandée. */
+  function buildD(withLive) {
+    const mk = MK(), s = S(), cur = withLive && LV.cur;
+    const t = withLive ? [...LV.t, cur ? cur.t : LV.t[LV.t.length - 1] + E.MS[mk.itv]] : LV.t.slice();
+    const D = E.prep(Float64Array.from(withLive ? [...LV.c, LV.px] : LV.c), E.ppyOf(mk.itv), mk.lev);
+    const v = withLive ? [...LV.v, cur ? cur.v : LV.v[LV.v.length - 1]] : LV.v, tb = withLive ? [...LV.tb, cur ? cur.tb : .5] : LV.tb;
+    E.attach(D, { t, v: Float64Array.from(v), tb: Float64Array.from(tb) });
+    if (LV.bt.length) { const bx = E.alignTo(t, LV.bt, LV.bc); if (withLive && LV.bpx) bx[bx.length - 1] = LV.bpx; D.bx = bx; }
+    if (s.fundHist) D.fund = E.fundAt(t, E.MS[mk.itv], s.fundHist);
+    return D;
   }
   function baseNN() {
     if (!LV.c.length) return;
-    const D = E.prep(Float64Array.from(LV.c), E.ppyOf(MK().itv));
+    const D = buildD(false);
     if (LV.model) E.predictNN(TF, LV.model, D); LV.baseNN = D.nn;
   }
   function connectWS() {
-    const sym = SYM, mk = MK();
-    const ws = new WebSocket(`wss://data-stream.binance.vision/ws/${mk.sym.toLowerCase()}@kline_${mk.itv}`); LV.ws = ws;
+    const sym = SYM, mk = MK(), me = mk.sym.toLowerCase(), alt = mk.sym !== 'BTCUSDT';
+    const streams = [`${me}@kline_${mk.itv}`, ...(alt ? [`btcusdt@kline_${mk.itv}`] : [])].join('/');
+    const ws = new WebSocket(`wss://data-stream.binance.vision/stream?streams=${streams}`); LV.ws = ws;
     ws.onmessage = ev => {
       let m; try { m = JSON.parse(ev.data); } catch (x) { return; }
-      const k = m && m.k; if (!k || LV.sym !== sym) return;
-      LV.px = +k.c; LV.pxT = Date.now();
-      if (k.x && +k.t > LV.t[LV.t.length - 1]) { LV.t.push(+k.t); LV.c.push(+k.c); if (LV.t.length > 1500) { LV.t.splice(0, 300); LV.c.splice(0, 300); } baseNN(); addLog(`Bougie de ${hm(+k.t)} clôturée à ${usd(+k.c)}.`); }
+      const k = m && m.data && m.data.k; if (!k || LV.sym !== sym) return;
+      if (alt && k.s === 'BTCUSDT') {
+        LV.bpx = +k.c;
+        if (k.x && +k.t > LV.bt[LV.bt.length - 1]) { LV.bt.push(+k.t); LV.bc.push(+k.c); }
+        return;
+      }
+      if (k.s && k.s !== mk.sym) return;
+      LV.px = +k.c; LV.pxT = Date.now(); LV.cur = { t: +k.t, v: +k.v, tb: +k.v > 0 ? +k.V / +k.v : .5 };
+      if (k.x && +k.t > LV.t[LV.t.length - 1]) {
+        LV.t.push(+k.t); LV.c.push(+k.c); LV.v.push(+k.v); LV.tb.push(LV.cur.tb); LV.cur = null;
+        if (LV.t.length > 1500) for (const a of [LV.t, LV.c, LV.v, LV.tb]) a.splice(0, 300);
+        baseNN(); addLog(`Bougie de ${hm(+k.t)} clôturée à ${usd(+k.c)}.`);
+      }
     };
     ws.onclose = () => { if (LV.ws === ws) { LV.ws = null; setTimeout(() => { if (TOKEN && online && LV.sym === sym && !LV.ws) connectWS(); }, 4000); } };
   }
@@ -247,7 +274,7 @@
   /* Ce que chaque robot pense, recalculé à partir du cours de cette seconde. */
   function think() {
     const s = S(); if (!E || !s || !LV.c.length || LV.px == null || !s.bots[0].st) return null;
-    const D = E.prep(Float64Array.from([...LV.c, LV.px]), E.ppyOf(MK().itv), MK().lev), n = D.n, i = n - 1;
+    const D = buildD(true), n = D.n, i = n - 1;
     let q = null;
     if (LV.model && LV.baseNN) {
       const nn = new Float32Array(n).fill(NaN); nn.set(LV.baseNN.subarray(0, n - 1));
@@ -256,7 +283,7 @@
       D.nn = nn;
     }
     E.members(D, s.bots.map(b => b.g));
-    return { D, i, q, out: s.bots.map((b, k) => ({ it: E.intent(E.BOTS[k], b.g, D, i, b.st), why: why(k, b.g, D, i, q) })) };
+    return { D, i, q, out: s.bots.map((b, k) => ({ it: b.g && E.BOTS[k] ? E.intent(E.BOTS[k], b.g, D, i, b.st) : { pos: 0, why: 'signal' }, why: b.g && E.BOTS[k] ? why(k, b.g, D, i, q) : '' })) };
   }
   function why(k, g, D, i, q) {
     const p = D.p[i];
@@ -269,6 +296,7 @@
       case 5: return q == null ? 'Cerveau de l\'IA en cours de chargement.' : `Probabilité de hausse d'ici ${dur(S().H || 4)} : ${num(q * 100)} % (achat au-dessus de ${num(50 + g.m * 100)} %, vente sous ${num(50 - g.m * 100)} %).`;
       case 6: { let up = 0, dn = 0; for (const m of D.mem) { if (m[i] > 0) up++; else if (m[i] < 0) dn++; } return `Votes : ${up} à l'achat, ${dn} à la vente. Il faut ${R(g.v)} vote${R(g.v) > 1 ? 's' : ''} d'écart pour agir.`; }
       case 7: return `Reste acheté en permanence, revend à +${num(g.tp * 100, 2)} % ou à −${num(g.sl * 100)} %.`;
+      case 8: { const f = E.flow(D, i, R(g.k)), z = E.volZ(D, i); return `Achats agressifs sur ${dur(R(g.k))} : ${num((f + .5) * 100)} % du volume (il agit au-delà de ${num((.5 + g.th) * 100)} % ou en dessous de ${num((.5 - g.th) * 100)} %). Volume ${z > g.vz ? 'suffisant' : 'trop faible'} (${num(z, 1)} contre ${num(g.vz, 1)} requis).`; }
     }
     return '';
   }
@@ -329,7 +357,7 @@
   function drawChart(liveEq) {
     const s = S(), c = $('#cv'); if (!s || !c.clientWidth) return;
     const W = c.clientWidth, H = c.clientHeight, dpr = devicePixelRatio || 1; c.width = W * dpr; c.height = H * dpr; const x = c.getContext('2d'); x.scale(dpr, dpr);
-    const series = s.bots.map((b, k) => ({ v: [...s.hist.map(h => h[k + 1]), ...(liveEq ? [liveEq[k]] : [])], col: colOf(b.col), dash: isTrap(b.name) ? [2, 3] : [], w: b.col === 'ink' ? 2.6 : 1.8 }));
+    const series = s.bots.map((b, k) => ({ v: [...s.hist.map(h => h[k + 1] ?? 1), ...(liveEq ? [liveEq[k]] : [])], col: colOf(b.col), dash: isTrap(b.name) ? [2, 3] : [], w: b.col === 'ink' ? 2.6 : 1.8 }));
     if (series[0].v.length < 2) { x.fillStyle = cssv('--mut'); x.font = '15px system-ui'; x.fillText('Les courbes se dessinent au fil des heures.', 12, 30); return; }
     let lo = 1e9, hi = -1e9; for (const sr of series) for (const v of sr.v) { if (v < lo) lo = v; if (v > hi) hi = v; }
     const pad = (hi - lo) * .08 || .004; lo = Math.min(lo - pad, .998); hi = Math.max(hi + pad, 1.002);

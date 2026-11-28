@@ -164,10 +164,18 @@ ol{padding-left:20px;margin:8px 0 0}li{margin-bottom:6px}
 <li><b>Mise selon le risque</b> : quand le marché s'agite, le robot mise une plus petite part de son capital (de 10 % à 100 %).</li>
 <li><b>Veille</b> : chaque jour, un robot dont le meilleur réglage perd sur les données récentes jamais vues arrête de trader. Il continue d'apprendre et reprend dès qu'il trouve un avantage prouvé. Ne rien faire vaut mieux que perdre en frais.</li>
 <li><b>Pause de sécurité</b> : un robot qui perd 5 % en 24 h coupe sa position et attend la fenêtre suivante.</li></ul></details>
-<details><summary>Les 8 robots</summary><ul id="guideBots"></ul></details>
+<details><summary>Les informations utilisées</summary>
+<ul><li><b>Prix</b> : les cours de clôture de chaque bougie (Binance).</li>
+<li><b>Volumes</b> : un volume inhabituel signale souvent qu'un mouvement est sérieux.</li>
+<li><b>Flux acheteurs</b> : la part des achats passés au prix du marché, par des acheteurs pressés. Quand elle domine, la pression est à la hausse.</li>
+<li><b>Taux de financement</b> : ce que paient les traders à effet de levier sur les contrats à terme. Très élevé, il signale un marché trop optimiste ; négatif, trop pessimiste.</li>
+<li><b>Le BTC</b> : les autres cryptos suivent souvent le BTC avec un léger retard. L'IA le surveille pour ETH, SOL, BNB, XRP et DOGE.</li>
+<li><b>L'heure et le jour</b> : l'activité change selon l'ouverture des marchés en Asie, en Europe et aux États-Unis, et le week-end.</li></ul>
+<p>Le robot Flux acheteurs et l'IA s'en servent directement. Les autres robots restent volontairement simples, pour servir de comparaison.</p></details>
+<details><summary>Les 9 robots</summary><ul id="guideBots"></ul></details>
 <details><summary>Comprendre l'IA</summary>
-<p>L'IA est un réseau de neurones TensorFlow.js. Elle regarde les 20 dernières variations du cours, la volatilité, l'écart à la moyenne et le RSI. Elle en déduit la probabilité que le cours soit plus haut 4 bougies plus tard (4 heures, ou 1 heure dans l'arène risquée).</p>
-<p>Elle n'achète que si cette probabilité dépasse assez 50 %, et ne vend que si elle tombe assez en dessous. Ce seuil, visible sur la jauge, est lui-même réglé par l'apprentissage. Son « cerveau » est réentraîné chaque heure sur toutes les bougies connues, et c'est exactement ce cerveau que ton téléphone utilise ici en direct.</p></details>
+<p>L'IA est un réseau de neurones TensorFlow.js. Elle regarde 34 informations : les 20 dernières variations du cours, la volatilité, l'écart à la moyenne, le RSI, le volume, le flux acheteurs, le mouvement du BTC, l'heure, le jour et le taux de financement. Elle en déduit la probabilité que le cours soit plus haut 4 bougies plus tard (4 heures, ou 1 heure dans l'arène risquée).</p>
+<p>Elle n'achète que si cette probabilité dépasse assez 50 %, et ne vend que si elle tombe assez en dessous. Ce seuil, visible sur la jauge, est lui-même réglé par l'apprentissage. Son « cerveau » est réentraîné chaque jour sur toutes les bougies connues, et c'est exactement ce cerveau que ton téléphone utilise ici en direct.</p></details>
 <details><summary>Lire les chiffres</summary>
 <ul><li><b>Capital maintenant</b> : les 10 000 € de départ, plus les gains et moins les pertes, y compris le trade en cours au cours de cette seconde.</li>
 <li><b>Position</b> : Achat (le robot gagne si le cours monte), Vente (il gagne s'il baisse) ou Neutre (il ne fait rien).</li>
