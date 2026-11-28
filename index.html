@@ -140,7 +140,7 @@ ol{padding-left:20px;margin:8px 0 0}li{margin-bottom:6px}
 <h2>Capital depuis le départ</h2>
 <div class="fig"><canvas id="cv"></canvas></div>
 <div class="leg" id="leg"></div>
-<table class="stack"><thead><tr><th>Robot</th><th>Capital maintenant</th><th>Depuis le départ</th><th>Trades</th><th>Réussite</th><th>Perte max</th><th>Score test</th></tr></thead><tbody id="tb"></tbody></table>
+<table class="stack"><thead><tr><th>Robot</th><th>Capital maintenant</th><th>Depuis le départ</th><th>Trades</th><th>Réussite</th><th>Perte max</th><th>Score réel</th><th>Score test</th></tr></thead><tbody id="tb"></tbody></table>
 </div></section>
 
 <section class="band mist"><div class="w">
@@ -152,9 +152,18 @@ ol{padding-left:20px;margin:8px 0 0}li{margin-bottom:6px}
 <section class="band guide"><div class="w">
 <h2>Guide</h2>
 <details><summary>Comment fonctionne le système</summary>
-<p>Un robot serveur tourne seul deux fois par heure sur GitHub, même téléphone éteint. À chaque passage, il récupère les vrais cours Binance de BTC, ETH, SOL, BNB, XRP et DOGE en bougies d'1 heure, et de BTC, ETH et SOL en bougies de 15 minutes pour l'arène risquée. Il joue la dernière heure avec les réglages décidés avant elle, pour qu'aucun robot ne voie l'avenir. Puis tous les robots et l'IA réapprennent ensemble sur les données à jour.</p>
+<p>Un robot serveur tourne seul deux fois par heure sur GitHub, même téléphone éteint. À chaque passage, il récupère les vrais cours Binance de BTC, ETH, SOL, BNB, XRP et DOGE en bougies d'1 heure, et de BTC, ETH et SOL en bougies de 15 minutes pour l'arène risquée. Il joue la dernière heure avec les réglages décidés avant elle, pour qu'aucun robot ne voie l'avenir. Puis tous les robots et l'IA continuent d'apprendre sur les données à jour. Une fois par jour, chaque robot n'adopte de nouveaux réglages que s'ils sont nettement meilleurs que les siens sur des données qu'il n'a jamais vues. Le reste du temps, il garde sa stratégie, ce qui permet de juger ses résultats.</p>
 <p>Chaque robot gère 10 000 € fictifs par crypto. Aucun ordre réel n'est passé. Les frais réels de Binance (0,1 % par ordre) sont déduits.</p>
 <p>Cette appli reçoit le cours en direct et recalcule chaque seconde le capital de chaque robot, ainsi que ce qu'il déciderait à la prochaine clôture.</p></details>
+<details><summary>Comment les robots évitent de tricher</summary>
+<ul><li><b>Trois tranches de données</b> : les 60 % les plus anciens servent à apprendre, les 20 % suivants à choisir les réglages, et les 20 % les plus récents au score test. Un robot n'est jamais noté sur ce qu'il a appris.</li>
+<li><b>Régularité exigée</b> : un réglage est jugé sur plusieurs périodes séparées. S'il ne brille que sur une seule, il est pénalisé.</li>
+<li><b>Examen sur les autres cryptos</b> : un réglage trouvé sur BTC doit aussi tenir sur ETH, SOL, BNB, XRP et DOGE pour être adopté.</li>
+<li><b>Frais doublés pendant l'apprentissage</b> : les stratégies qui tradent sans arrêt sont écartées d'office.</li>
+<li><b>Durée minimale</b> : chaque robot garde un trade un nombre minimal de bougies, qu'il apprend lui-même, sauf si son stop est touché.</li>
+<li><b>Mise selon le risque</b> : quand le marché s'agite, le robot mise une plus petite part de son capital (de 10 % à 100 %).</li>
+<li><b>Veille</b> : chaque jour, un robot dont le meilleur réglage perd sur les données récentes jamais vues arrête de trader. Il continue d'apprendre et reprend dès qu'il trouve un avantage prouvé. Ne rien faire vaut mieux que perdre en frais.</li>
+<li><b>Pause de sécurité</b> : un robot qui perd 5 % en 24 h coupe sa position et attend la fenêtre suivante.</li></ul></details>
 <details><summary>Les 8 robots</summary><ul id="guideBots"></ul></details>
 <details><summary>Comprendre l'IA</summary>
 <p>L'IA est un réseau de neurones TensorFlow.js. Elle regarde les 20 dernières variations du cours, la volatilité, l'écart à la moyenne et le RSI. Elle en déduit la probabilité que le cours soit plus haut 4 bougies plus tard (4 heures, ou 1 heure dans l'arène risquée).</p>
@@ -164,7 +173,10 @@ ol{padding-left:20px;margin:8px 0 0}li{margin-bottom:6px}
 <li><b>Position</b> : Achat (le robot gagne si le cours monte), Vente (il gagne s'il baisse) ou Neutre (il ne fait rien).</li>
 <li><b>Réussite</b> : la part des trades gagnants. Ce n'est pas un bon critère seul, lis « Le piège des 95 % ».</li>
 <li><b>Perte max</b> : la pire chute du capital depuis un sommet. Au-delà de 30 %, un robot est trop risqué.</li>
-<li><b>Score test (Sharpe)</b> : le gain rapporté au risque, sur les 35 % de données récentes que le robot n'a pas vues pendant son apprentissage. Au-dessus de 1, c'est bon ; en dessous de 0, il perd.</li>
+<li><b>Score test (Sharpe)</b> : le gain rapporté au risque, sur les 20 % de données les plus récentes, que le robot n'a pas vues pendant son apprentissage. Au-dessus de 1, c'est bon ; en dessous de 0, il perd.</li>
+<li><b>Score réel</b> : le même calcul sur ses trades fictifs en direct, affiché à partir de 10 trades. C'est le seul juge qui compte.</li>
+<li><b>Détecteur de surapprentissage</b> : un robot très bon en test (au-dessus de 1) mais perdant en réel a appris par cœur au lieu de comprendre. L'appli l'affiche avec ⚠.</li>
+<li><b>Mise</b> : la part du capital engagée dans le trade en cours.</li>
 <li><b>Achat-conservation</b> : ce qu'aurait donné le simple fait de garder la crypto. Un robot utile doit faire mieux, avec moins de risque.</li></ul></details>
 <details><summary>L'arène risquée (15 min, levier ×3)</summary>
 <p>Les onglets « risqué » font trader les mêmes robots sur des bougies de 15 minutes, avec un effet de levier ×3 : chaque variation du cours compte triple, en gain comme en perte, frais compris. Le serveur les fait réapprendre toutes les 30 minutes sur les cours les plus récents.</p>

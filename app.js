@@ -151,7 +151,7 @@
     const syms = Object.keys(DATA.syms); if (!syms.includes(SYM)) SYM = syms[0];
     $('#tabs').innerHTML = syms.map(s => `<button data-s="${esc(s)}" class="${s === SYM ? 'on' : ''}">${esc(DATA.syms[s].label || s.replace('USDT', ''))}</button>`).join('');
     const s = S(), key = SYM + DATA.updated;
-    $('#sum').textContent = `${s.lev > 1 ? `Arène risquée : bougies de ${dur(1)}, levier ×${s.lev} (gains et pertes multipliés par ${s.lev}, un robot à zéro est éliminé). ` : `Bougies de ${dur(1)}, sans levier. `}Départ le ${when(s.since)} · ${DATA.runs} passage${DATA.runs > 1 ? 's' : ''} du serveur · ${s.gen} générations d'apprentissage · dernier passage ${ago(DATA.updated)}. Garder la crypto sans rien faire aurait donné ${pc(s.bh)}.`;
+    $('#sum').textContent = `${s.lev > 1 ? `Arène risquée : bougies de ${dur(1)}, levier ×${s.lev} (gains et pertes multipliés par ${s.lev}, un robot à zéro est éliminé). ` : `Bougies de ${dur(1)}, sans levier. `}Départ le ${when(s.since)} · ${DATA.runs} passage${DATA.runs > 1 ? 's' : ''} du serveur · ${s.gen} générations d'apprentissage · dernier passage ${ago(DATA.updated)}. Garder la crypto sans rien faire aurait donné ${pc(s.bh)}.${s.nextReview ? ` Prochaine revue des réglages : ${when(s.nextReview)}.` : ''}`;
     if (key !== viewKey) {
       viewKey = key;
       $('#room').innerHTML = s.bots.map((b, k) => `<article class="desk">
@@ -160,8 +160,9 @@
 <div class="row"><span>Depuis le départ</span><span id="chg-${k}">—</span></div>
 <div class="row"><span>Trade en cours</span><span id="open-${k}">—</span></div>
 <div class="row"><span>Si la bougie fermait maintenant</span><span id="int-${k}" class="chg">—</span></div>
+<div class="row"><span>Score réel / test</span><span>${ovf(b)}</span></div>
 <div class="why" id="why-${k}"></div>
-<details><summary>Comment je décide</summary><p class="note">${esc((INFO[k] || ['', ''])[1])}</p><p class="note">${esc(settings(k, b.g || {}))}</p><p class="note">Score test : ${num(b.test.sh, 2)} · ${b.live.tr} trade${b.live.tr > 1 ? 's' : ''} fictif${b.live.tr > 1 ? 's' : ''} depuis le départ.</p></details>
+<details><summary>Comment je décide</summary><p class="note">${esc((INFO[k] || ['', ''])[1])}</p><p class="note">${esc(settings(k, b.g || {}))}</p><p class="note">Réglages adoptés ${b.since ? 'le ' + when(b.since) : 'au départ'}. Score test : ${num(b.test.sh, 2)} · ${b.live.tr} trade${b.live.tr > 1 ? 's' : ''} fictif${b.live.tr > 1 ? 's' : ''} depuis le départ.</p></details>
 </article>`).join('');
       $('#leg').innerHTML = s.bots.map(b => `<span><i style="background:${colOf(b.col)}"></i>${esc(b.name)}</span>`).join('');
       renderLog(); drawChart();
@@ -170,9 +171,16 @@
   }
   $('#tabs').onclick = e => { const b = e.target.closest('button'); if (b && b.dataset.s !== SYM) { SYM = b.dataset.s; viewKey = ''; buildView(); startLive(); } };
 
+  function ovf(b) {
+    const l = b.live, t = b.test.sh, base = `${num(l.sh || 0, 2)} / ${num(t, 2)}`;
+    if (l.tr < 10) return `${base} · trop tôt (${l.tr}/10 trades)`;
+    if (t > 1 && (l.sh || 0) < 0) return `${base} · ⚠ surapprentissage probable`;
+    if ((l.sh || 0) > 0 && t > 0) return `${base} · cohérent`;
+    return `${base} · pas d'avantage prouvé`;
+  }
   function settings(k, g) {
     const sh = g.sh == null ? '' : g.sh < .5 ? ' · ne parie jamais à la baisse' : ' · peut parier à la baisse';
-    const risk = g.sl ? ` · stop à −${num(g.sl * 100)} % · objectif à +${num(g.tp * 100)} %` : '';
+    const risk = (g.sl ? ` · stop à −${num(g.sl * 100)} % · objectif à +${num(g.tp * 100)} %` : '') + (g.hold ? ` · garde au moins ${dur(R(g.hold))}` : '') + (g.risk ? ` · mise réglée pour viser ${num(g.risk * 100, 1)} % de variation par bougie` : '');
     const t = [
       () => `Réglages appris : moyennes de ${dur(R(g.f))} et ${dur(Math.max(R(g.f) + 5, R(g.s)))}`,
       () => `Réglages appris : moyenne sur ${dur(R(g.k))}, seuil à ${num(g.z, 2)} écart-type`,
@@ -280,16 +288,16 @@
     const pxEl = $('#hPx'), txt = usd(px);
     if (pxEl.textContent !== txt) { pxEl.textContent = txt; if (lastPx != null) { pxEl.classList.remove('up', 'dn'); void pxEl.offsetWidth; pxEl.classList.add(px >= lastPx ? 'up' : 'dn'); } lastPx = px; }
     const th = live ? think() : null;
-    const lev = s.lev || 1, caps = s.bots.map(b => b.st ? Math.max(0, start * b.st.eq * (1 + b.st.pos * lev * (px / s.price - 1))) : b.live.capital);
+    const lev = s.lev || 1, caps = s.bots.map(b => b.st ? Math.max(0, start * b.st.eq * (1 + b.st.pos * lev * (b.st.size || 1) * (px / s.price - 1))) : b.live.capital);
     s.bots.forEach((b, k) => {
       const st = b.st || { pos: b.live.pos };
       set(`cap-${k}`, eur(caps[k])); set(`chg-${k}`, pc(caps[k] / start - 1), cls(caps[k] / start - 1));
-      set(`pos-${k}`, posTxt(st.pos), 'badge b' + st.pos);
-      set(`open-${k}`, st.dead ? 'éliminé (capital à zéro)' : st.pos && st.entry ? `${posTxt(st.pos)} à ${usd(st.entry)} · ${pc(st.pos * lev * (px / st.entry - 1), 2)}` : 'aucun');
+      set(`pos-${k}`, b.g && b.g.off && !st.pos ? 'Veille' : posTxt(st.pos), 'badge b' + st.pos);
+      set(`open-${k}`, st.dead ? 'éliminé (capital à zéro)' : st.pause ? 'en pause (−5 % sur 24 h)' : st.pos && st.entry ? `${posTxt(st.pos)} à ${usd(st.entry)} · ${pc(st.pos * lev * (st.size || 1) * (px / st.entry - 1), 2)} · mise ${R((st.size || 1) * 100)} %` : 'aucun');
       if (th) {
         const o = th.out[k], ip = o.it.pos, ch = ip !== st.pos;
-        set(`int-${k}`, (o.it.why === 'elimine' ? 'Éliminé' : o.it.why === 'stop' ? 'Stop : sortirait' : o.it.why === 'objectif' ? 'Objectif : encaisserait' : ch ? `Passerait à ${posTxt(ip)}` : `Resterait ${posTxt(ip)}`), ch ? 'chg pos' : 'chg');
-        set(`why-${k}`, o.why);
+        set(`int-${k}`, (o.it.why === 'elimine' ? 'Éliminé' : o.it.why === 'pause' ? 'En pause' : o.it.why === 'veille' ? 'En veille' : o.it.why === 'maintien' ? `Garde sa position (durée minimale)` : o.it.why === 'stop' ? 'Stop : sortirait' : o.it.why === 'objectif' ? 'Objectif : encaisserait' : ch ? `Passerait à ${posTxt(ip)}` : `Resterait ${posTxt(ip)}`), ch ? 'chg pos' : 'chg');
+        set(`why-${k}`, b.g && b.g.off ? `En veille : son meilleur réglage ne gagne pas sur les données récentes jamais vues (score ${num(b.g.score || 0, 2)}). Il ne trade plus jusqu'à trouver un avantage prouvé. Pour info : ${o.why}` : o.why);
         if (LV.intent[k] !== undefined && LV.intent[k] !== ip) addLog(`${b.name} : changerait d'avis, ${posTxt(LV.intent[k])} → ${posTxt(ip)} si la bougie fermait maintenant.`);
         LV.intent[k] = ip;
       } else { set(`int-${k}`, '—', 'chg'); set(`why-${k}`, online ? 'Connexion au cours en direct…' : 'Hors ligne : dernier état connu du serveur.'); }
@@ -297,7 +305,7 @@
     const best = s.bots.map((b, k) => k).filter(k => !isTrap(s.bots[k].name)).sort((a, b) => caps[b] - caps[a])[0];
     set('hBest', eur(caps[best])); $('#hBest').previousElementSibling.textContent = `En tête : ${s.bots[best].name}`;
     aiView(th, caps, start);
-    $('#tb').innerHTML = s.bots.map((b, k) => [k, caps[k]]).sort((a, b) => b[1] - a[1]).map(([k, c]) => { const b = s.bots[k], l = b.live; return `<tr><td data-l="Robot"><span class="dot" style="background:${colOf(b.col)}"></span>${esc(b.name)}</td><td data-l="Capital maintenant">${eur(c)}</td><td data-l="Depuis le départ" class="${cls(c / start - 1)}">${pc(c / start - 1)}</td><td data-l="Trades">${+l.tr}</td><td data-l="Réussite">${l.tr ? R(l.wr * 100) + ' %' : '—'}</td><td data-l="Perte max">${R(l.dd * 100)} %</td><td data-l="Score test">${num(b.test.sh, 2)}</td></tr>`; }).join('');
+    $('#tb').innerHTML = s.bots.map((b, k) => [k, caps[k]]).sort((a, b) => b[1] - a[1]).map(([k, c]) => { const b = s.bots[k], l = b.live; return `<tr><td data-l="Robot"><span class="dot" style="background:${colOf(b.col)}"></span>${esc(b.name)}</td><td data-l="Capital maintenant">${eur(c)}</td><td data-l="Depuis le départ" class="${cls(c / start - 1)}">${pc(c / start - 1)}</td><td data-l="Trades">${+l.tr}</td><td data-l="Réussite">${l.tr ? R(l.wr * 100) + ' %' : '—'}</td><td data-l="Perte max">${R(l.dd * 100)} %</td><td data-l="Score réel">${l.tr >= 10 ? num(l.sh || 0, 2) : '—'}</td><td data-l="Score test">${num(b.test.sh, 2)}</td></tr>`; }).join('');
     if (force || now - lastChart > 5000) { lastChart = now; drawChart(caps.map(c => c / start)); }
   }
   function aiView(th, caps, start) {
@@ -314,7 +322,7 @@
   function addLog(t) { LV.logs.unshift({ t: Date.now(), txt: t, live: 1 }); LV.logs = LV.logs.slice(0, 40); renderLog(); }
   function renderLog() {
     const s = S(); if (!s) return;
-    const srv = (s.events || []).map(e => ({ t: e.t + 36e5, txt: `${s.bots[e.k] ? s.bots[e.k].name : 'Robot'} : ${posTxt(e.a)} → ${posTxt(e.b)} à ${usd(e.p)} (trade fictif du serveur).` }));
+    const srv = (s.events || []).map(e => { const nm = s.bots[e.k] ? s.bots[e.k].name : 'Robot'; return e.v !== undefined ? { t: e.t + 36e5, txt: e.v ? `${nm} : mis en veille, aucun avantage prouvé sur les données récentes.` : `${nm} : sort de veille, il a trouvé un réglage qui gagne sur des données jamais vues.` } : e.d ? { t: e.t + 36e5, txt: `${nm} : nouveaux réglages adoptés, nettement meilleurs sur des données jamais vues (score ${num(e.sc, 2)} contre ${num(e.old, 2)}).` } : { t: e.t + 36e5, txt: `${nm} : ${posTxt(e.a)} → ${posTxt(e.b)} à ${usd(e.p)} (trade fictif du serveur).` }; });
     const all = [...LV.logs, ...srv].sort((a, b) => b.t - a.t).slice(0, 40);
     $('#log').innerHTML = all.length ? all.map(e => `<li><time>${e.live ? hms(e.t) : when(e.t)}</time><span>${esc(e.txt)}</span></li>`).join('') : '<li><time></time><span>Aucun trade pour l\'instant : les robots attendent un signal.</span></li>';
   }
